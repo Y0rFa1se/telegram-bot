@@ -38,13 +38,10 @@ jobs:
           context: .
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - name: Setup WARP
         uses: fscarmen/warp-on-actions@v1.1
