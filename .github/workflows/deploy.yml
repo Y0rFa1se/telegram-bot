@@ -2,8 +2,8 @@ name: Deploy Telegram Bot (IPv6 Only, Podman)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ "main" ]
+  # push:
+  #   branches: [ "main" ]
 
 env:
   REGISTRY: ghcr.io
@@ -46,7 +46,7 @@ jobs:
       - name: Deploy to IPv6 Server
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: "${{ secrets.SERVER_HOST }}"
+          host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
