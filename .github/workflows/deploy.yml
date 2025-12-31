@@ -3,7 +3,7 @@ name: Deploy Telegram Bot (IPv6 Only, Podman)
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   REGISTRY: ghcr.io
@@ -20,39 +20,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and save image
+        run: |
+          docker build -t telegram-bot:latest .
+          docker save telegram-bot:latest -o telegram-bot.tar
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
       - name: Setup WARP
         uses: fscarmen/warp-on-actions@v1.1
         with:
           stack: dual
 
-      - name: Fucking ssh
+      - name: Transfer and Run
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-          ssh -vv -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=30 "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" << 'EOF'
-            echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            podman pull ghcr.io/${{ github.repository }}:latest
+          scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no telegram-bot.tar ${{ secrets.SERVER_USER }}@[${{ secrets.SERVER_HOST }}]:/home/${{ secrets.SERVER_USER }}/
+
+          ssh -vv -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@[${{ secrets.SERVER_HOST }}] << 'EOF'
+            podman load -i /home/${{ secrets.SERVER_USER }}/telegram-bot.tar
+            rm /home/${{ secrets.SERVER_USER }}/telegram-bot.tar
             
             podman stop telegram-bot || true
             podman rm telegram-bot || true
@@ -62,7 +50,7 @@ jobs:
               --network host \
               --env-file /home/${{ secrets.SERVER_USER }}/apps/tg-bot/telegram-bot.env \
               --restart always \
-              ghcr.io/${{ github.repository }}:latest
+              localhost/telegram-bot:latest
               
             podman image prune -f
           EOF
