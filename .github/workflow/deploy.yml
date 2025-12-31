@@ -1,0 +1,74 @@
+name: Deploy Telegram Bot (IPv6 Only, Podman)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: tg-bot
+  CONTAINER_NAME: telegram-bot
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup WARP
+        uses: fscarmen/warp-on-actions@v1.1
+        with:
+          stack: dual
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Setup WARP
+        uses: fscarmen/warp-on-actions@v1.1
+        with:
+          stack: dual
+
+      - name: Deploy to IPv6 Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "${{ secrets.GITHUB_TOKEN }}" | podman login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+            podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            
+            podman stop ${{ env.CONTAINER_NAME }} || true
+            podman rm ${{ env.CONTAINER_NAME }} || true
+            
+            podman run -d \
+              --name ${{ env.CONTAINER_NAME }} \
+              --network host \
+              --env-file /home/${{ secrets.SERVER_USER }}/apps/tg-bot/telegram-bot.env \
+              --restart always \
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+              
+            podman image prune -f

@@ -1,0 +1,13 @@
+[Unit]
+Description=My Telegram Bot Container
+
+[Container]
+Image=ghcr.io/조직명/telegram-bot:latest
+EnvironmentFile=/home/user/app/.env
+Network=host
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
