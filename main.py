@@ -1,23 +1,25 @@
 import os
-import sqlite3
-import asyncio
 
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
-from dotenv import load_dotenv
 
+import modules
 
-load_dotenv()
+ENV = os.getenv("APP_ENV", "DEV")
+
+if ENV == "DEV":
+    from dotenv import load_dotenv
+
+    load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 ALLOWED_USER = {int(os.getenv("ALLOWED_USER"))}
 
 
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.from_user.id not in ALLOWED_USER:
-        await update.message.reply_text("You are not authorized to use this bot.")
-        return
-    await update.message.reply_text(f"Hello, {update.message.text}, {update.message.from_user.id}!")
+    await update.message.reply_text(
+        f"Hello, {update.message.text}, {update.message.from_user.id}!"
+    )
     return
 
 
