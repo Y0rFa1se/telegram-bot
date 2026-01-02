@@ -1,0 +1,10 @@
+services:
+  tg-bot:
+    image: ${REGISTRY}/${IMAGE_NAME}:latest
+    container_name: tg-bot
+    restart: always
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
