@@ -4,7 +4,6 @@
 
 .env
 .env.example
-.python-version
 
 README.md
 docker-compose.yml
