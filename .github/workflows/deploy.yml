@@ -56,6 +56,12 @@ jobs:
             podman rm ${{ env.CONTAINER_NAME }} || true
 
             mkdir -p /home/${{ secrets.SERVER_USER }}/apps/tg-bot/data
+
+            if [ ! -f /home/${{ secrets.SERVER_USER }}/apps/tg-bot/.env ]; then
+              mv /home/${{ secrets.SERVER_USER }}/apps/tg-bot/.env.example /home/${{ secrets.SERVER_USER }}/apps/tg-bot/.env
+              echo "Please edit the .env file with your configuration."
+              exit 1
+            fi
             
             podman run -d \
               -v /home/${{ secrets.SERVER_USER }}/apps/tg-bot/data:/app/data \
