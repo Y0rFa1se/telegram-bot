@@ -1,6 +1,6 @@
+import telegram
 from telegram import (
     Update,
-    BotCommand,
     ReplyKeyboardMarkup,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
@@ -8,76 +8,112 @@ from telegram import (
 from telegram.ext import ContextTypes
 
 
-class Bot:
-    def __init__(self, db):
-        self.db = db
-
-    async def set_commands(self, app):
-        await app.bot.set_my_commands([BotCommand("start", "Start")])
-        return
-
-    async def start_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Hello")
-        return
-
-    async def delete_this_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="This command will be deleted"
-        )
-        await update.message.delete()
-        return
-
-    async def reply(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        text = update.message.text
-        await update.message.reply_text(f"You said: {text}")
-        return
-
-    async def keyboard_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        keyboard = [["/start", "Show Recent Data"], ["Delete Data"]]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(
-            "Please choose an option:", reply_markup=reply_markup
-        )
-        return
-
-    async def inkeyboard_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        keyboard = [
+class Utils:
+    @staticmethod
+    def inline_keyboard(
+        keyboard: list[list[tuple[str] | list[str]]],
+    ) -> InlineKeyboardMarkup:
+        buttons = [
             [
-                InlineKeyboardButton("Fetch Data", callback_data="fetch"),
-                InlineKeyboardButton("Help", callback_data="help"),
-            ],
-            [InlineKeyboardButton("Go to Google", url="https://google.com")],
+                InlineKeyboardButton(text=txt, callback_data=callback)
+                for txt, callback in row
+            ]
+            for row in keyboard
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text("Select an action:", reply_markup=reply_markup)
-        return
+        return InlineKeyboardMarkup(buttons)
 
-    async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    @staticmethod
+    def reply_keyboard(keyboard: list[list[str]]) -> ReplyKeyboardMarkup:
+        return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+
+class BotAPI:
+    @staticmethod
+    async def get_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        return update.message.text
+
+    @staticmethod
+    async def get_args(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        return context.args
+
+    @staticmethod
+    async def get_raw_args(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        text = await BotAPI.get_text(update, context)
+        parts = text.split(maxsplit=1)
+        if len(parts) <= 1:
+            return []
+
+        raw_args = parts[1].strip()
+        args = [arg.strip() for arg in raw_args.split("\n")]
+
+        return args
+
+    @staticmethod
+    async def reply(
+        update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, reply_markup=None
+    ) -> telegram.Message:
+        return await update.message.reply_text(text, reply_markup=reply_markup)
+
+    @staticmethod
+    async def edit(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        msg: telegram.Message = None,
+        text: str = None,
+        reply_markup=None,
+    ) -> telegram.Message:
+        try:
+            target = msg if msg is not None else update.effective_message
+            if not target:
+                return None
+
+            if text:
+                return await target.edit_text(text, reply_markup=reply_markup)
+
+            return await target.edit_reply_markup(reply_markup=reply_markup)
+
+        except telegram.error.BadRequest as e:
+            return None
+
+    @staticmethod
+    async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        return await update.message.delete()
+
+    @staticmethod
+    async def delete_id(
+        update: Update, context: ContextTypes.DEFAULT_TYPE, msg: telegram.Message
+    ):
+        return await context.bot.delete_message(
+            chat_id=update.effective_chat.id, message_id=msg.message_id
+        )
+
+
+class CallbackAPI:
+    @staticmethod
+    async def get_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
-        await query.answer()
+        if query:
+            await query.answer()
 
-        if query.data == "fetch":
-            await query.edit_message_text(text="Fetching data...")
-        elif query.data == "help":
-            await query.edit_message_text(text="Help section")
-        return
-    
-    async def h_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        msg = update.message.text
-        if " " in msg:
-            command_part, body = msg.split(maxsplit=1)
-        else:
-            body = ""
-        
-        args = body.split("\n")
-        for a in args:
-            self.db.insert_h_data(a)
-            
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Data inserted.")
-        return
+        return query
 
-    async def hl_cmd(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        h_list = self.db.fetch_all_h_data()
-        h_list = str(h_list)
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=h_list)
-        return
+    @staticmethod
+    async def reply(query: telegram.CallbackQuery, text: str, reply_markup=None):
+        return await query.message.reply_text(text, reply_markup=reply_markup)
+
+    @staticmethod
+    async def edit(query: telegram.CallbackQuery, text: str = None, reply_markup=None):
+        try:
+            if text:
+                return await query.edit_message_text(
+                    text=text, reply_markup=reply_markup
+                )
+
+            return await query.edit_message_reply_markup(reply_markup=reply_markup)
+
+        except telegram.error.BadRequest as e:
+            return None
+
+    @staticmethod
+    async def delete(query: telegram.CallbackQuery):
+        return await query.message.delete()

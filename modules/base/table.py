@@ -48,13 +48,15 @@ class Table:
             self.table = self.db[table_name].create(scheme, **args)
 
     def __call__(self, data: dict):
-        self.table.upsert(data)
+        self.table.upsert(data, pk=self.table.pks[0])
 
     def __contains__(self, key):
         """in operator to check if primary key exists."""
 
         key = self.text_preproc(key)
-        row = next(self.table.rows_where(f"{self.table.pk} = ?", [key], limit=1), None)
+        row = next(
+            self.table.rows_where(f"{self.table.pks[0]} = ?", [key], limit=1), None
+        )
         return row is not None
 
     def __len__(self):
@@ -79,7 +81,7 @@ class Table:
         elif isinstance(key, str):
             key = self.text_preproc(key)
             row = next(
-                self.table.rows_where(f"{self.table.pk} = ?", [key], limit=1), None
+                self.table.rows_where(f"{self.table.pks[0]} = ?", [key], limit=1), None
             )
             return row if row else None
 
@@ -89,10 +91,10 @@ class Table:
         """Insert or update by primary key."""
 
         if isinstance(data, dict):
-            self.table.upsert(data)
+            self.table.upsert(data, pk=self.table.pks[0])
 
         elif isinstance(data, (list, tuple)):
-            self.table.upsert_all(data)
+            self.table.upsert_all(data, pk=self.table.pks[0])
 
         return self
 
@@ -114,33 +116,33 @@ class Table:
         """Search by primary key using LIKE operator."""
 
         key = self.text_preproc(key)
-        rows = self.table.rows_where(f"{self.table.pk} LIKE ?", [f"%{key}%"])
+        rows = self.table.rows_where(f"{self.table.pks[0]} LIKE ?", [f"%{key}%"])
 
         ret = []
         for row in rows:
-            ret.append(row[self.table.pk])
+            ret.append(row[self.table.pks[0]])
         return ret
 
     def __xor__(self, key: str):
         """Search by primary key starting with the key"""
 
         key = self.text_preproc(key)
-        rows = self.table.rows_where(f"{self.table.pk} LIKE ?", [f"{key}%"])
+        rows = self.table.rows_where(f"{self.table.pks[0]} LIKE ?", [f"{key}%"])
 
         ret = []
         for row in rows:
-            ret.append(row[self.table.pk])
+            ret.append(row[self.table.pks[0]])
         return ret
 
     def __truediv__(self, key: str):
         """Search by primary key ending with the key"""
 
         key = self.text_preproc(key)
-        rows = self.table.rows_where(f"{self.table.pk} LIKE ?", [f"%{key}"])
+        rows = self.table.rows_where(f"{self.table.pks[0]} LIKE ?", [f"%{key}"])
 
         ret = []
         for row in rows:
-            ret.append(row[self.table.pk])
+            ret.append(row[self.table.pks[0]])
         return ret
 
     def __mod__(self, key: int | float):
@@ -153,7 +155,7 @@ class Table:
 
         ret = []
         for row in rows:
-            ret.append(row[self.table.pk])
+            ret.append(row[self.table.pks[0]])
         return ret
 
     def __invert__(self):

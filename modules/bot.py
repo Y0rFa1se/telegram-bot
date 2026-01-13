@@ -7,10 +7,11 @@ class Bot:
     commands = []
 
     def __init__(self, token, commands, handlers):
-        self.app = ApplicationBuilder().token(token).build()
-
         self.commands = commands
-        self.app.post_init = self.set_commands
+        
+        self.app_builder = ApplicationBuilder().token(token)
+        self.app_builder.post_init(self.set_commands)
+        self.app = self.app_builder.build()
 
         for handler in handlers:
             self.app.add_handler(handler)
